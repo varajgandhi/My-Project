@@ -1,0 +1,12 @@
+//In your html.tpl.php file, use below code to implement javascript on your node.
+
+if(arg(0) == 'node') {
+        $arr_list_of_nodes = array('3', '4', '7');
+        $nid = arg(1);
+
+        if(in_array($nid, $arr_list_of_nodes)) {
+                ?><script type=""text/javascript"" language=""Javascript"">
+                        //your js code
+                </script><?php
+        }
+}
