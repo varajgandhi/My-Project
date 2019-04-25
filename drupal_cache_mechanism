@@ -1,0 +1,94 @@
+CACHING IN DRUPAL
+-----------------
+Drupal comprises several layers of execution and it obviously consumes pretty much time to render content from dynamic PHP code. Caching is a key technique to maximize the performance of Drupal. Before adopting a caching mechanism in Drupal, one must consider the type of site and the type of users coming to the site. Not all sites could have same caching mechanism.
+
+Caching techniques could be classified at various levels depending on type of data being cached and the user affected. Drupal can have broadly two kinds of users.
+
+  1.Anonymous Users
+  2.Authenticated Users
+
+HTML pages delivered for anonymous users are all same but the HTML pages delivered to authenticated users has personalized content (Ex. Welcome <user name>). Essentially, very high speed can be achieved by caching HTML output for anonymous users. Now let us see various methods of caching in Drupal.
+
+DRUPAL INTERNAL CACHING
+-------------------------
+Drupal internally has a caching mechanism that we could leverage easily. Data stored in cache tables can be fetched at higher speed. Drupal internal caching can be integrated with a  preferred caching backend instead of default cache DB table. Drupal cache settings are listed in its performance page. It contains the following options:
+
+Cache pages for anonymous users: Enable this to activate full page caching for anonymous users.
+Cache blocks: Enable this to cache Drupal blocks (also remember that block cache will be disregarded by page cache).
+Minimum cache lifetime: This value is often misunderstood. It not just indicate the time after which the cache should be deleted. It should be accompanied by a cache clearing event.
+Expiration of cached pages: This refers to the maximum time an external cache can use an older version of a page. This is not related to Drupal’s internal cache tables.
+It is always recommended to enable Drupal internal caching in your production site.
+
+CUSTOM CACHE USING DRUPAL’S CACHE API
+---------------------------------------
+Drupal core provides cache API to save data in cache tables. This helps us to save data directly from PHP code. Large amounts of data can be stored in a dedicated cache table. For instance, views module uses cache_views and cache_views_data to store data.
+
+The predominant functions of cache API:
+----------------------------------------
+      cache_set($cid, $data, $bin = 'cache', $expire = CACHE_PERMANENT)
+      cache_get($cid, $bin = 'cache')
+      cache_clear_all($cid = NULL, $bin = NULL, $wildcard = FALSE)
+The $cid (cache ID) uniquely identify a cached element in a {cache} table. If the $wildcard boolean is set to TRUE, all cache IDs starting with $cid (string) are deleted.
+
+DRUPAL VIEWS CACHE:
+--------------------
+Drupal’s views module stores data in its own dedicated tables {cache_views} and {cache_views_data}. Caching is off by default and it can be enabled under Advanced options for each individual view display. It allows us to cache query results and rendered output for each view display. If you generate a block, you can expose it to Drupal’s built-in block caching. It also uncovers the Drupal block caching types such as caching per user, per page, per role, etc.
+
+MEMCACHE
+---------
+Memcache is a technique in which the objects from external data source (database or API) are cached in RAM. It helps reduce database load and is generally much faster. Memcache is generally helpful to speed up the site for authenticated users.
+
+It requires a daemon/service called ‘memcached’ (see memcached.org) and also a PHP extension to use this service. There are two PHP extensions available to use this service ‘memcache’ and ‘memcached’ (don’t get confused with previously said memcached daemon). Memcache is not recommended for shared hosting servers.
+
+Drupal’s memcache module provides integration between Drupal and memcached. Additionally, you need to set memcached as cache-backend for Drupal to start integrating memcached with Drupal’s caching system. This is done with the following snippet of code in Drupal’s settings.php
+
+    $conf['cache_backends'][] = 'sites/all/modules/memcache/memcache.inc';
+    $conf['cache_default_class'] = 'MemCacheDrupal';
+    $conf['cache_class_cache_form'] = 'DrupalDatabaseCache';
+    $conf['memcache_key_prefix'] = 'unique_key'; /*Multisite installation*/
+    
+OPCODE CACHE
+------------
+There are several add-ons for PHP that will convert program code to memory (bytecode). This bytecode can be cached to skip parsing and compilation for the next request. It will improve load time and reduce CPU usage. This technique is known as Opcode Caching.
+
+APC (Alternative PHP Cache) is a familiar add-on for PHP to perform opcode caching. It also supports user cache. It operates at the server level and cannot be run on shared hosting servers.
+
+Zend Opcache is another such add-on for PHP. It is compiled by default on PHP v5.5+. It has more advanced features than APC but does not support user cache. If you want to take advantage of APC’s user cache, you can install an extension named APCu.
+
+REVERSE PROXY - VARNISH
+------------------------
+Varnish is an advanced and very fast reverse-proxy system. (see this StackOverflow question to know what reverse-proxy is)
+
+Varnish acts as an intermediary between the users and the web server. When Varnish receives a page request from a user, it will first check its own internal cache for that particular page. If found it can serve faster from its own cache otherwise it forwards the request to original web server.
+
+Varnish could handle serving static files and anonymous page-views only. Drupal’s varnish module provides integration between Drupal and Varnish HTTP Accelerator. Additionally, you need to set Varnish as cache-backend for Drupal (Refer varnish project page). Also you need to configure Varnish to tell where it should listen to your web server. This is done with the following snippet of code in /etc/varnish/default.vcl
+
+    backend default {
+      .host = "127.0.0.1";
+      .port = "8000";
+    }
+Note: The option ‘Page cache lifetime’ in Drupal’s Performance page is used to define Varnish cache expiration date. Drupal’s expire module can be used to expire URLs from Varnish cache.
+
+BOOST
+------
+Drupal’s boost module provides static page caching, similar to Varnish. On user request, instead of regenerating pages from PHP, it can serve .html or .html.gz pages directly from static disk files. It achieves this by modified .htaccess and robots.txt files. Pages that are served directly from boost will contain a short markup information at the end of the html code like
+
+  <!-- Page cached by Boost @ 2012-03-05 10:55:30, expires @ 2012-03-05 16:55:30 -->
+
+Boost module supports crawler (automatically regenerates URLs for expired pages). It works well in shared hosting environment. Many Drupal users are reporting success using Memcached (for authenticated page-views) and Boost (for anonymous page-views) together.
+
+CONTENT DELIVERY NETWORKS (CDN)
+---------------------------------
+CDN is a Geo-dispersed network that stores content closer to the user. It essentially reduces the latency between the end user and the server.
+
+Drupal’s cdn module provides easy Content Delivery Network integration for Drupal sites. It alters file URLs so that files are downloaded from a CDN instead of your web server.
+
+Unlike the other caching options, a CDN will always involve an additional financial cost.
+
+FINAL WORDS:
+------------
+There are several techniques to perform caching in Drupal. Efficient use of these methods could improve your site performance. A poor cache configuration could cause negative effects. Generally, one can figure out best possible caching configuration with the server resources available by trying them out for that particular website.
+
+You can leverage full page caching for anonymous users using Varnish if you are having a dedicated server or Boost if on a shared server. APC (OpCode cache) generally does help with better low level performance tweaks. Cache for authenticated users can use Memcache reducing load on database.
+
+Drupal 8 performance gain: In Drupal 7, it is just possible to delete a specific cache item, or clear an entire cache bin, or use prefix-based invalidation. It means if you modify a node, you cannot precisely target all the cache items that contain this node. But, Drupal 8 (with the introduction of cache tags) has more precise cache invalidation. Each cache item can have number of cache tags. This helps us to target our cache items more precisely for deletion, and an obvious gain in the cache hit ratio. Also, see the changes in cache API here.
